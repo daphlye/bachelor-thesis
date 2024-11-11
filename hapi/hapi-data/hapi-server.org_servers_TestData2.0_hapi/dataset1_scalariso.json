@@ -1,0 +1,29 @@
+{
+  "startDate": "1970-01-01Z",
+  "stopDate": "2016-12-31Z",
+  "sampleStartDate": "1970-01-01Z",
+  "sampleStopDate": "1970-01-01T00:00:11Z",
+  "cadence": "PT1S",
+  "parameters": [
+    {
+      "name": "Time",
+      "type": "isotime",
+      "units": "UTC",
+      "fill": null,
+      "length": 24
+    },
+    {
+      "name": "scalariso",
+      "type": "isotime",
+      "units": "UTC",
+      "fill": "0000-00-00:T00:00:00Z",
+      "length": 20,
+      "description": "Time parameter + 1 second"
+    }
+  ],
+  "HAPI": "2.0",
+  "status": {
+    "code": 1200,
+    "message": "OK"
+  }
+}

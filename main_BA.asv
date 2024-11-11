@@ -1,0 +1,16 @@
+% main document.
+
+% make database
+%get_database_1;
+fprintf()
+if numel(fieldnames(tints)) > 50 
+    fprintf('\n%d Time intervals. Analyzation might take too long. Stopping here.', numel(fieldnames(tints)));
+    return;
+end
+
+% analyze extracted time intervals and plot functions
+counter.rd = 0;
+for i = 1:numel(fieldnames(tints))
+    % function 2
+    % function 3
+end

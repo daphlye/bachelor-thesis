@@ -1,0 +1,29 @@
+{
+  "startDate": "1970-01-01Z",
+  "stopDate": "2016-12-31Z",
+  "sampleStartDate": "1970-01-01Z",
+  "sampleStopDate": "1970-01-01T00:00:11Z",
+  "cadence": "PT1S",
+  "parameters": [
+    {
+      "name": "Time",
+      "type": "isotime",
+      "units": "UTC",
+      "fill": null,
+      "length": 24
+    },
+    {
+      "name": "scalarstr",
+      "type": "string",
+      "units": null,
+      "fill": null,
+      "length": 3,
+      "description": "Status checks result; P = Pass, F = Fail"
+    }
+  ],
+  "HAPI": "2.0",
+  "status": {
+    "code": 1200,
+    "message": "OK"
+  }
+}

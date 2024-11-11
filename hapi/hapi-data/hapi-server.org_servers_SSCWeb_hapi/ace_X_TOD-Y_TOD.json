@@ -1,0 +1,35 @@
+{
+  "startDate": "1997-08-25T17:48:00.000Z",
+  "stopDate": "2024-11-11T22:48:00.000Z",
+  "cadence": "PT720S",
+  "description": "ACE ephemeris",
+  "resourceURL": "https://sscweb.gsfc.nasa.gov/",
+  "parameters": [
+    {
+      "name": "Time",
+      "type": "isotime",
+      "units": "UTC",
+      "fill": null,
+      "length": 18
+    },
+    {
+      "name": "X_TOD",
+      "description": "X Position in the Geocentric Equatorial Inertial coordinate system, also known as True Equator and True Equinox of Date, True of Date TOD, ECI, or GCI",
+      "units": "R_E",
+      "fill": "1e31",
+      "type": "double"
+    },
+    {
+      "name": "Y_TOD",
+      "description": "Y Position in the Geocentric Equatorial Inertial coordinate system, also known as True Equator and True Equinox of Date, True of Date TOD, ECI, or GCI",
+      "units": "R_E",
+      "fill": "1e31",
+      "type": "double"
+    }
+  ],
+  "HAPI": "2.0",
+  "status": {
+    "code": 1200,
+    "message": "OK"
+  }
+}
