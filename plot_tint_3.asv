@@ -8,10 +8,11 @@ tmp.filename = fullfile('events/', event.tint_string);
 if ~exist(tmp.filename, 'dir')
     mkdir(tmp.filename);
 end
-
+% set linewidth and 
 %plt = 0; if time, we can make this a finction that tests if all plots
 %got created so that code can stop if not.
-% plot OMNI
+
+%% plot OMNI
 h = irf_plot(4,'newfigure');
 
 hca = irf_panel('M_{MS, OMNI}');
@@ -30,7 +31,7 @@ irf_legend(hca,'(b)',[0.99 0.98],'color','k')
 
 hca = irf_panel('v_{OMNI}');
 irf_plot(hca,omni.Vxyz);
-ylabel(hca,{'v_{GSM}','(nT)'},'Interpreter','tex');
+ylabel(hca,{'v_{GSM}','(km/s)'},'Interpreter','tex');
 irf_legend(hca,{'v_{x}','v_{y}','v_{z}'},[0.88 0.10])
 %irf_zoom(hca,'x',tint);
 irf_legend(hca,'(c)',[0.99 0.98],'color','k')
@@ -61,7 +62,7 @@ irf_legend(hca,'(a)',[0.99 0.98],'color','k')
 
 hca = irf_panel('V_{MMS1}');
 irf_plot(hca,mmsd.Vi1_gsm);
-ylabel(hca,{'v_{GSM}','(nT)'},'Interpreter','tex');
+ylabel(hca,{'v_{GSM}','(km/s)'},'Interpreter','tex');
 irf_legend(hca,{'B_{x}','B_{y}','B_{z}'},[0.88 0.10])
 %irf_zoom(hca,'y',[-70 70]);
 irf_legend(hca,'(b)',[0.99 0.98],'color','k')
@@ -77,27 +78,22 @@ irf_legend(hca,{'MMS1','MMS2','MMS3','MMS4'},[0.99 0.1],'color','cluster')
 
 hca = irf_panel('J_{MMS}');
 irf_plot(hca,mmsd.j*1e9);
-ylabel(hca,{'J_{GSM}','(nA/m^{2})'},'Interpreter','tex');
+ylabel(hca,{'J_{GSM, cm}','(nA/m^{2})'},'Interpreter','tex');
 irf_legend(hca,{'J_{x}','J_{y}','J_{z}'},[0.88 0.10])
 irf_legend(hca,'(d)',[0.99 0.98],'color','k')
 
-if 1
+if 0
     hca = irf_panel('divovercurl');
     irf_plot(hca,mmsd.divovercurl);
     ylabel(hca,{'|\nabla . B|','|\nabla \times B|'},'Interpreter','tex');
     irf_legend(hca,'(d)',[0.99 0.98],'color','k')
 end
-% E field plot
-if 0
-hca = irf_panel('jxB');
-mmsd.jxB_plot = mmsd.jxB;
-mmsd.jxB_plot.data = mmsd.jxB.data./[mmsd.ni.data mmsd.ni.data mmsd.ni.data];
-mmsd.jxB_plot.data = mmsd.jxB_plot.data/1.6e-19/1000; %Convert to (mV/m)
-mmsd.jxB_plot.data(abs(mmsd.jxB.data) > 100) = NaN; % Remove some questionable fields
-irf_plot(hca,mmsd.jxB_plot);
-ylabel(hca,{'J \times B/n_{e} q_{e}','(mV m^{-1})'},'Interpreter','tex');
-irf_legend(hca,'(e)',[0.99 0.98],'color','k')
-end
+
+hca = irf_panel('J_{MMS_pmm}');
+irf_plot(hca,mmsd.J_pmm*1e9);
+ylabel(hca,{'J_{GSM, pmm}','(nA/m^{2})'},'Interpreter','tex');
+irf_legend(hca,{'J_{x}','J_{y}','J_{z}'},[0.88 0.10])
+irf_legend(hca,'(d)',[0.99 0.98],'color','k')
 
 %title(h(1),'MMS - Current density and fields');
 
@@ -134,24 +130,89 @@ close;
 
 %% all relevant data of that certain event
 
-h = irf_figure(1,8,'reset');
+h = irf_figure(1,4,'reset');
 
 hca = irf_panel('B_{MMS1}');
 irf_plot(hca,event.raw.B1_gsm);
 ylabel(hca,{'B_{GSM, MMS1}','(nT)'},'Interpreter','tex');
 irf_legend(hca,{'B_{x}','B_{y}','B_{z}'},[0.88 0.10])
 
-hca = irf_panel('V_{MMS1}');
-irf_plot(hca,event.raw.Vi1_gsm);
-ylabel(hca,{'v_{GSM, MMS1}','(nT)'},'Interpreter','tex');
-irf_legend(hca,{'v_{x}','v_{y}','v_{z}'},[0.88 0.10])
+hca = irf_panel('R_{MMS1}');
+irf_plot(hca,TSeries(event.raw.R1_gsm.time, (event.raw.R1_gsm.data(:,1:3)/6378)));
+ylabel(hca,{'R_{GSM, MMS1}','(R_E)'},'Interpreter','tex');
+irf_legend(hca,{'R_{x}','R_{y}','R_{z}'},[0.88 0.10])
 
-mmsColors=[0 0 0; 1 0 0 ; 0 0.5 0 ; 0 0 1];
-hca = irf_panel('n_{p, MMS}'); set(hca,'ColorOrder',mmsColors)
-irf_pl_tx(hca,'event.raw.Ni?');
-ylabel(hca,{'n_p','(#/cm^{3})'},'Interpreter','tex');
-set(hca,'yscale','log'); % ,'log'
-irf_legend(hca,{'MMS1','MMS2','MMS3','MMS4'},[0.99 0.1],'color','cluster')
+if 0
+    hca = irf_panel('V_{MMS1}');
+    irf_plot(hca,event.raw.Vi1_gsm);
+    ylabel(hca,{'v_{GSM, MMS1}','(km/s)'},'Interpreter','tex');
+    irf_legend(hca,{'v_{x}','v_{y}','v_{z}'},[0.88 0.10])
+    
+    mmsColors=[0 0 0; 1 0 0 ; 0 0.5 0 ; 0 0 1];
+    hca = irf_panel('n_{p, MMS}'); set(hca,'ColorOrder',mmsColors)
+    irf_pl_tx(hca,'event.raw.Ni?');
+    ylabel(hca,{'n_p','(#/cm^{3})'},'Interpreter','tex');
+    set(hca,'yscale','log'); % ,'log'
+    irf_legend(hca,{'MMS1','MMS2','MMS3','MMS4'},[0.99 0.1],'color','cluster')
+end
+% current
+hca = irf_panel('|J|'); % currently in micro Ampere
+irf_plot(hca, event.raw.j_mag*1e6);
+hold(hca,'on');
+irf_plot(hca, event.nslv*1e6);
+irf_plot(hca, event.Jmag_pks*1e6, 'linestyle', 'x');
+hold(hca,'off');
+grid on;
+ylabel(hca, {'|J_{GSM}|','(\mu A/m^{2})'},'Interpreter','tex');
+irf_legend(hca,{'data','noise level','peaks'},[0.88 0.90]);
+
+
+% div over curl of B
+if 1
+    hca = irf_panel('divovercurl');
+    irf_plot(hca,event.raw.divovercurl);
+    ylabel(hca,{'|\nabla . B|/|\nabla \times B|'},'Interpreter','tex');
+end
+
+if 0
+% J*r dirction
+    hca = irf_panel('J*r all');
+    irf_plot(hca, event.uv.jr_all, 'o', 'MarkerSize', 3);
+    ylabel(hca, '$\hat{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
+    
+    hca = irf_panel('J*r pks');
+    irf_plot(hca, event.uv.jr_pks, 'linestyle', 'o');
+    ylabel(hca, '$(\hat{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$', 'Interpreter', 'latex');
+    
+    % J*r ~direction and ~J_magnitude
+    hca = irf_panel('J*r all vec');
+    irf_plot(hca, event.jr_mag.all, 'o', 'MarkerSize', 3);
+    ylabel(hca, '$\vec{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
+    
+    hca = irf_panel('J*r pks vec');
+    irf_plot(hca, event.jr_mag.pks, 'linestyle', 'o');
+    ylabel(hca, '$(\vec{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$', 'Interpreter', 'latex');
+end
+
+irf_zoom(h(1:4),'x',tint_beob); % tint_beob [tint_beob(1)+300;tint_beob(1)+360]
+irf_plot_axis_align(1,h(1:4));
+
+tmp.filename = fullfile('events/', event.tint_string,'relevant_data');
+irf_print_fig(tmp.filename,'png');
+close(gcf);
+
+%% same data for smaller tint
+h = irf_figure(1,4,'reset');
+
+hca = irf_panel('B_{MMS1}');
+irf_plot(hca,event.raw.B1_gsm);
+ylabel(hca,{'B_{GSM, MMS1}','(nT)'},'Interpreter','tex');
+irf_legend(hca,{'B_{x}','B_{y}','B_{z}'},[0.88 0.10])
+
+hca = irf_panel('R_{MMS1}');
+irf_plot(hca,TSeries(event.raw.R1_gsm.time, event.raw.R1_gsm.data(:,1:3)/6378));
+ylabel(hca,{'R_{GSM, MMS1}','(R_E)'},'Interpreter','tex');
+irf_legend(hca,{'R_{x}','R_{y}','R_{z}'},[0.88 0.10])
 
 % current
 hca = irf_panel('|J|'); % currently in micro Ampere
@@ -162,33 +223,22 @@ irf_plot(hca, event.Jmag_pks*1e6, 'linestyle', 'x');
 hold(hca,'off');
 grid on;
 ylabel(hca, {'|J_{GSM}|','(\mu A/m^{2})'},'Interpreter','tex');
-irf_legend(hca,{'data','noise level','peaks'},[0.88 0.90])
+irf_legend(hca,{'data','noise level','peaks'},[0.88 0.90]);
 
-% J*r dirction
-hca = irf_panel('J*r all');
-irf_plot(hca, event.uv.jr_all, 'o', 'MarkerSize', 3);
-ylabel(hca, '$\hat{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
+% div over curl of B
+if 1
+    hca = irf_panel('divovercurl');
+    irf_plot(hca,event.raw.divovercurl);
+    ylabel(hca,{'|\nabla . B|/|\nabla \times B|'},'Interpreter','tex');
+end
 
-hca = irf_panel('J*r pks');
-irf_plot(hca, event.uv.jr_pks, 'linestyle', 'o');
-ylabel(hca, '$(\hat{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$', 'Interpreter', 'latex');
-
-% J*r ~direction and ~J_magnitude
-hca = irf_panel('J*r all vec');
-irf_plot(hca, event.jr_mag.all, 'o', 'MarkerSize', 3);
-ylabel(hca, '$\vec{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
-
-hca = irf_panel('J*r pks vec');
-irf_plot(hca, event.jr_mag.pks, 'linestyle', 'o');
-ylabel(hca, '$(\vec{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$', 'Interpreter', 'latex');
+irf_plot_axis_align(1,h(1:4))
+irf_zoom(h(1:4),'x',EpochTT([tint_beob(1)+300;tint_beob(1)+360]));
 
 
-irf_plot_axis_align(1,h(1:8))
-irf_zoom(h(1:8),'x',tint_beob); % tint_beob [tint_beob(1)+300;tint_beob(1)+360]
-
-tmp.filename = fullfile('events/', event.tint_string,'relevant_data');
-irf_print_fig(tmp.filename,'png');
-close(gcf);
+tmp.filename = fullfile('events/', event.tint_string,'relevant_data_zoom');
+%irf_print_fig(tmp.filename,'png');
+%close(gcf);
 %% spacecraft magnetic field measurements
 h = irf_figure(1,3,'reset');
 
@@ -200,7 +250,7 @@ irf_plot(hca,event.raw.B3_gsm.x);
 irf_plot(hca,event.raw.B4_gsm.x);
 hold(hca,'off');
 ylabel(hca,{'B_{x}','(nT)'},'Interpreter','tex');
-irf_legend(hca,{'B_{1}','B_{2}','B_{3}','B_{4}'},[0.88 0.10])
+irf_legend(hca,{'MMS_{1}','MMS_{2}','MMS_{3}','MMS_{4}'},[0.88 0.10]);
 
 hca = irf_panel('B_{y}');
 irf_plot(hca,event.raw.B1_gsm.y);
@@ -210,7 +260,8 @@ irf_plot(hca,event.raw.B3_gsm.y);
 irf_plot(hca,event.raw.B4_gsm.y);
 hold(hca,'off');
 ylabel(hca,{'B_{y}','(nT)'},'Interpreter','tex');
-irf_legend(hca,{'B_{1}','B_{2}','B_{3}','B_{4}'},[0.88 0.10])
+irf_legend(hca,{'MMS_{1}','MMS_{2}','MMS_{3}','MMS_{4}'},[0.88 0.10]);
+
 
 hca = irf_panel('B_{z}');
 irf_plot(hca,event.raw.B1_gsm.z);
@@ -220,7 +271,8 @@ irf_plot(hca,event.raw.B3_gsm.z);
 irf_plot(hca,event.raw.B4_gsm.z);
 hold(hca,'off');
 ylabel(hca,{'B_{z}','(nT)'},'Interpreter','tex');
-irf_legend(hca,{'B_{1}','B_{2}','B_{3}','B_{4}'},[0.88 0.10])
+irf_legend(hca,{'MMS_{1}','MMS_{2}','MMS_{3}','MMS_{4}'},[0.88 0.10]);
+
 
 irf_plot_axis_align(1,h(1:3))
 irf_zoom(h(1:3),'x',[tint_beob(1)+300;tint_beob(1)+360]);
@@ -229,192 +281,196 @@ tmp.filename = fullfile('events/', event.tint_string,'B_each_sc');
 irf_print_fig(tmp.filename,'png');
 close(gcf);
 
+%% spacecraft position plot
+h = irf_figure(1,3,'reset');
 
-%% particle distribution time series
-% time series ele
+hca = irf_panel('R_{x}');
+irf_plot(hca,TSeries(event.raw.R1_gsm.time,event.raw.R1_gsm.data(:,1)./6378));
+hold(hca,'on')
+irf_plot(hca,TSeries(event.raw.R2_gsm.time,event.raw.R2_gsm.data(:,1)./6378));
+irf_plot(hca,TSeries(event.raw.R3_gsm.time,event.raw.R3_gsm.data(:,1)./6378));
+irf_plot(hca,TSeries(event.raw.R4_gsm.time,event.raw.R4_gsm.data(:,1)./6378));
+hold(hca,'off');
+ylabel(hca,{'R_{x}','$(R_{E})$'},'Interpreter','tex');
+irf_legend(hca,{'MMS_{1}','MMS_{2}','MMS_{3}','MMS_{4}'},[0.88 0.10]);
 
-nPanels = 8;
-h = irf_plot(nPanels);
-   % tmp.nRows = 4; tmp.nCols = 2;
-   % for ii = 1:tmp.nRows*tmp.nCols; h(ii) = subplot(tmp.nRows,tmp.nCols,ii); end
-   % tmp.isub = 1;
-    %
-%h = irf_plot(tmp.nPanels);
-c_eval('event.ePDistN = event.ePDist?; event.raw.BN_gsm = event.raw.B?_gsm;',Param.ic)
-% B
-if 1
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('B');
-  irf_plot(hca,event.raw.BN_gsm)
-  hold(hca,'on')
-  irf_plot(hca,event.raw.BN_gsm.abs)
-  hca.YLabel.String = 'B (nT)';
-  title(hca,irf_ssub('MMS? electrons', Param.ic))
-end
-% J*r
-%hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-hca = irf_panel('e omni');
-irf_plot(hca, event.jr_mag.all, 'o', 'MarkerSize', 3);
-ylabel(hca, '$\vec{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
+hca = irf_panel('R_{y}');
+irf_plot(hca,TSeries(event.raw.R1_gsm.time,event.raw.R1_gsm.data(:,2)./6378));
+hold(hca,'on')
+irf_plot(hca,TSeries(event.raw.R2_gsm.time,event.raw.R2_gsm.data(:,2)./6378));
+irf_plot(hca,TSeries(event.raw.R3_gsm.time,event.raw.R3_gsm.data(:,2)./6378));
+irf_plot(hca,TSeries(event.raw.R4_gsm.time,event.raw.R4_gsm.data(:,2)./6378));
+hold(hca,'off');
+ylabel(hca,{'R_{y}','$(R_{E})$'},'Interpreter','tex');
+irf_legend(hca,{'MMS_{1}','MMS_{2}','MMS_{3}','MMS_{4}'},[0.88 0.10]);
 
-% e omni
-if 1
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('e omni 64 energy channels'); %#ok<UNRCH>
-  [hca, hcb]=irf_spectrogram(hca,event.ePDistN.omni.specrec);
-  colormap('jet');
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-end
-% e pitchangles lower time resolution
-if 1
-  elim = [20 200];
-  hca = irf_panel('e pitchangles 64 energy channels');
-  irf_spectrogram(hca,event.ePDistN.e64.elim(elim).pitchangles(event.raw.BN_gsm,18).specrec('pa'));
-  hca.YTick = [0 45 90 135];
-  irf_legend(hca,{[num2str(elim(1),'%.0f') '<E_e<' num2str(elim(2),'%.0f') ' eV']},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
-% e  pa mid
-if 1
-  elim = [200 2000];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('e pitchangles mid');
-  irf_spectrogram(hca,event.ePDistN.e64.elim(elim).pitchangles(event.raw.BN_gsm,18).specrec('pa'));
-  hca.YTick = [0 45 90 135];
-  irf_legend(hca,{[num2str(elim(1),'%.0f') '<E_e<' num2str(elim(2),'%.0f') ' eV']},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
-% e pa high
-if 0
-  elim = [400 20000]; %#ok<UNRCH>
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('e pitchangles high');
-  irf_spectrogram(hca,event.ePDistN.elim(elim).pitchangles(event.raw.BN_gsm,18).specrec('pa'));
-  hca.YTick = [0 45 90 135];
-  irf_legend(hca,{[num2str(elim(1),'%.0f') '<E_e<' num2str(elim(2),'%.0f') ' eV']},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
-% e spectogram parallel
-if 1
-  palim = [0 15];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-    hca = irf_panel('e spectrogram parallel');
-  irf_spectrogram(hca,event.ePDistN.pitchangles(event.raw.BN_gsm,[0 15]).specrec,'log')
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-  irf_legend(hca,{[num2str(palim(1),'%.0f') '<\theta_B<' num2str(palim(2),'%.0f')]},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
-% e spectogram perpendicular
-if 1
-  palim = [75 105];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-    hca = irf_panel('e spectrogram perpendicular');
-  irf_spectrogram(hca,event.ePDistN.pitchangles(event.raw.BN_gsm,palim).specrec,'log')
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-  irf_legend(hca,{[num2str(palim(1),'%.0f') '<\theta_B<' num2str(palim(2),'%.0f')]},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
-% e spectogram anti parallel
-if 1
-  palim = [165 180];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('e spectrogram anti-parallel');
-  irf_spectrogram(hca,event.ePDistN.pitchangles(event.raw.BN_gsm,palim).specrec,'log')
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-  irf_legend(hca,{[num2str(palim(1),'%.0f') '<\theta_B<' num2str(palim(2),'%.0f')]},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
+hca = irf_panel('R_{z}');
+irf_plot(hca,TSeries(event.raw.R1_gsm.time,event.raw.R1_gsm.data(:,3)./6378));
+hold(hca,'on')
+irf_plot(hca,TSeries(event.raw.R2_gsm.time,event.raw.R2_gsm.data(:,3)./6378));
+irf_plot(hca,TSeries(event.raw.R3_gsm.time,event.raw.R3_gsm.data(:,3)./6378));
+irf_plot(hca,TSeries(event.raw.R4_gsm.time,event.raw.R4_gsm.data(:,3)./6378));
+hold(hca,'off');
+ylabel(hca,{'R_{z}','$(R_{E})$'},'Interpreter','tex');
+irf_legend(hca,{'MMS_{1}','MMS_{2}','MMS_{3}','MMS_{4}'},[0.88 0.10]);
 
-irf_zoom(h,'x',tint_beob)
-irf_plot_axis_align
-tmp.filename = fullfile('events/', event.tint_string,'electron_distributions');
+irf_plot_axis_align(1,h(1:3))
+irf_zoom(h(1:3),'x',[tint_beob(1)+300;tint_beob(1)+360]);
+
+tmp.filename = fullfile('events/', event.tint_string,'R_each_sc');
 irf_print_fig(tmp.filename,'png');
 close(gcf);
-%% time series ion
-nPanels = 8;
-h = irf_plot(nPanels);
-   % tmp.nRows = 4; tmp.nCols = 2;
-   % for ii = 1:tmp.nRows*tmp.nCols; h(ii) = subplot(tmp.nRows,tmp.nCols,ii); end
-   % tmp.isub = 1;
-    %
-%h = irf_plot(tmp.nPanels);
-c_eval('event.iPDistN = event.iPDist?;',Param.ic)
-% B
-if 1
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('B');
-  irf_plot(hca,event.raw.BN_gsm)
-  hold(hca,'on')
-  irf_plot(hca,event.raw.BN_gsm.abs)
-  hca.YLabel.String = 'B (nT)';
-  title(hca,irf_ssub('MMS? Ions', Param.ic))
-end
-% J*r
-%hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-hca = irf_panel('p omni');
-irf_plot(hca, event.jr_mag.all, 'o', 'MarkerSize', 3);
-ylabel(hca, '$\vec{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
 
-% p omni
-if 1
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('p omni 64 energy channels'); %#ok<UNRCH>
-  irf_spectrogram(hca,event.iPDistN.omni.specrec)
-  colormap('jet');
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-end
+%% current analyzing curlometer
 
-% e pitchangles lower time resolution
-if 1
-  elim = [20 200];
-  hca = irf_panel('p pitchangles 64 energy channels');
-  irf_spectrogram(hca,event.iPDistN.e64.elim(elim).pitchangles(event.raw.BN_gsm,18).specrec('pa'));
-  hca.YTick = [0 45 90 135];
-  irf_legend(hca,{[num2str(elim(1),'%.0f') '<E_p<' num2str(elim(2),'%.0f') ' eV']},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
+h = irf_figure(1,5,'reset');
+
+hca = irf_panel('B_{MMS1}');
+irf_plot(hca,event.raw.B1_gsm);
+ylabel(hca,{'B_{GSM, MMS1}','(nT)'},'Interpreter','tex');
+irf_legend(hca,{'B_{x}','B_{y}','B_{z}'},[0.88 0.10])
+
+if 0
+    hca = irf_panel('V_{MMS1}');
+    irf_plot(hca,event.raw.Vi1_gsm);
+    ylabel(hca,{'v_{GSM, MMS1}','(km/s)'},'Interpreter','tex');
+    irf_legend(hca,{'v_{x}','v_{y}','v_{z}'},[0.88 0.10])
 end
-% e  pa mid
 if 1
-  elim = [200 2000];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('p pitchangles mid');
-  irf_spectrogram(hca,event.iPDistN.e64.elim(elim).pitchangles(event.raw.BN_gsm,18).specrec('pa'));
-  hca.YTick = [0 45 90 135];
-  irf_legend(hca,{[num2str(elim(1),'%.0f') '<E_p<' num2str(elim(2),'%.0f') ' eV']},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
+    mmsColors=[0 0 0; 1 0 0 ; 0 0.5 0 ; 0 0 1];
+    hca = irf_panel('n_{p, MMS}'); set(hca,'ColorOrder',mmsColors)
+    irf_pl_tx(hca,'event.raw.Ni?');
+    ylabel(hca,{'n_p','(#/cm^{3})'},'Interpreter','tex');
+    set(hca,'yscale','log'); % ,'log'
+    irf_legend(hca,{'MMS1','MMS2','MMS3','MMS4'},[0.99 0.1],'color','cluster')
+end
+% current
+hca = irf_panel('|J|'); % currently in micro Ampere
+irf_plot(hca, event.raw.j_mag*1e6);
+hold(hca,'on');
+irf_plot(hca, event.nslv*1e6);
+irf_plot(hca, event.Jmag_pks*1e6, 'linestyle', 'x');
+hold(hca,'off');
+grid on;
+ylabel(hca, {'|J_{GSM}|','(\mu A/m^{2})'},'Interpreter','tex');
+irf_legend(hca,{'data','noise level','peaks'},[0.88 0.90]);
+
+if 0
+    irf_plot(hca, event.Jmag_pks*1e6, 'linestyle', 'x');
+    hold(hca,'off');
+    grid on;
+    ylabel(hca, {'|J_{GSM}|','(\mu A/m^{2})'},'Interpreter','tex');
+    irf_legend(hca,{'data','noise level','peaks'},[0.88 0.90]);
 end
 
-% e spectogram parallel
-if 1
-  palim = [0 15];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-    hca = irf_panel('p spectrogram parallel');
-  irf_spectrogram(hca,event.iPDistN.pitchangles(event.raw.BN_gsm,[0 15]).specrec,'log')
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-  irf_legend(hca,{[num2str(palim(1),'%.0f') '<\theta_B<' num2str(palim(2),'%.0f')]},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
-% e spectogram perpendicular
-if 1
-  palim = [75 105];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-    hca = irf_panel('p spectrogram perpendicular');
-  irf_spectrogram(hca,event.iPDistN.pitchangles(event.raw.BN_gsm,palim).specrec,'log')
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-  irf_legend(hca,{[num2str(palim(1),'%.0f') '<\theta_B<' num2str(palim(2),'%.0f')]},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
-end
-% e spectogram anti parallel
-if 1
-  palim = [165 180];
-  %hca = h(tmp.isub); tmp.isub = tmp.isub + 1;
-  hca = irf_panel('p spectrogram anti-parallel');
-  irf_spectrogram(hca,event.iPDistN.pitchangles(event.raw.BN_gsm,palim).specrec,'log')
-  hca.YScale = 'log';
-  hca.YTick = 10.^[1 2 3 4];
-  irf_legend(hca,{[num2str(palim(1),'%.0f') '<\theta_B<' num2str(palim(2),'%.0f')]},[0.98 0.90],'fontsize',12,'color',[0 0 0]);
+% div over curl of B
+if 0
+    hca = irf_panel('divovercurl');
+    irf_plot(hca,event.raw.divovercurl);
+    ylabel(hca,{'|\nabla . B|/|\nabla \times B|'},'Interpreter','tex');
 end
 
-irf_zoom(h,'x',tint_beob)
-irf_plot_axis_align;
-tmp.filename = fullfile('events/', event.tint_string,'ion_distributions');
+if 1
+% J*r dirction
+    hca = irf_panel('J*r all');
+    irf_plot(hca, event.uv.jr_all, 'o', 'MarkerSize', 3);
+    ylabel(hca, '$\hat{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
+    
+    hca = irf_panel('J*r pks');
+    irf_plot(hca, event.uv.jr_pks, 'linestyle', 'o');
+    ylabel(hca, '$(\hat{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$', 'Interpreter', 'latex');
+end
+if 0
+    % J*r ~direction and ~J_magnitude
+    hca = irf_panel('J*r all vec');
+    irf_plot(hca, event.jr_mag.all*1e6, 'o', 'MarkerSize', 3);
+    ylabel(hca, {'\vec{\mathbf{J}} \cdot \hat{\mathbf{r}}','(\mu A/m^{2})'}, 'Interpreter', 'tex');
+    
+    hca = irf_panel('J*r pks vec');
+    irf_plot(hca, event.jr_mag.pks*1e6, 'linestyle', 'o');
+    ylabel(hca, {'\vec{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}','(\mu A/m^{2})'}, 'Interpreter', 'tex');
+end
+
+irf_plot_axis_align(1,h(1:5))
+irf_zoom(h(1:5),'x',tint_beob); % tint_beob [tint_beob(1)+300;tint_beob(1)+360]
+
+tmp.filename = fullfile('events/', event.tint_string,'Jr_uv');
+irf_print_fig(tmp.filename,'png');
+close(gcf);
+%% current analyzing curlometer
+
+h = irf_figure(1,5,'reset');
+
+hca = irf_panel('B_{MMS1}');
+irf_plot(hca,event.raw.B1_gsm);
+ylabel(hca,{'B_{GSM, MMS1}','(nT)'},'Interpreter','tex');
+irf_legend(hca,{'B_{x}','B_{y}','B_{z}'},[0.88 0.10])
+
+if 0
+    hca = irf_panel('V_{MMS1}');
+    irf_plot(hca,event.raw.Vi1_gsm);
+    ylabel(hca,{'v_{GSM, MMS1}','(km/s)'},'Interpreter','tex');
+    irf_legend(hca,{'v_{x}','v_{y}','v_{z}'},[0.88 0.10])
+end
+if 1
+    mmsColors=[0 0 0; 1 0 0 ; 0 0.5 0 ; 0 0 1];
+    hca = irf_panel('n_{p, MMS}'); set(hca,'ColorOrder',mmsColors)
+    irf_pl_tx(hca,'event.raw.Ni?');
+    ylabel(hca,{'n_p','(#/cm^{3})'},'Interpreter','tex');
+    set(hca,'yscale','log'); % ,'log'
+    irf_legend(hca,{'MMS1','MMS2','MMS3','MMS4'},[0.99 0.1],'color','cluster')
+end
+% current
+hca = irf_panel('|J|'); % currently in micro Ampere
+irf_plot(hca, event.raw.j_mag*1e6);
+hold(hca,'on');
+irf_plot(hca, event.nslv*1e6);
+irf_plot(hca, event.Jmag_pks*1e6, 'linestyle', 'x');
+hold(hca,'off');
+grid on;
+ylabel(hca, {'|J_{GSM}|','(\mu A/m^{2})'},'Interpreter','tex');
+irf_legend(hca,{'data','noise level','peaks'},[0.88 0.90]);
+
+if 0
+    irf_plot(hca, event.Jmag_pks*1e6, 'linestyle', 'x');
+    hold(hca,'off');
+    grid on;
+    ylabel(hca, {'|J_{GSM}|','(\mu A/m^{2})'},'Interpreter','tex');
+    irf_legend(hca,{'data','noise level','peaks'},[0.88 0.90]);
+end
+
+% div over curl of B
+if 0
+    hca = irf_panel('divovercurl');
+    irf_plot(hca,event.raw.divovercurl);
+    ylabel(hca,{'|\nabla . B|/|\nabla \times B|'},'Interpreter','tex');
+end
+
+if 0
+% J*r dirction
+    hca = irf_panel('J*r all');
+    irf_plot(hca, event.uv.jr_all, 'o', 'MarkerSize', 3);
+    ylabel(hca, '$\hat{\mathbf{J}} \cdot \hat{\mathbf{r}}$', 'Interpreter', 'latex');
+    
+    hca = irf_panel('J*r pks');
+    irf_plot(hca, event.uv.jr_pks, 'linestyle', 'o');
+    ylabel(hca, '$(\hat{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$', 'Interpreter', 'latex');
+end
+if 1
+    % J*r ~direction and ~J_magnitude
+    hca = irf_panel('J*r all vec');
+    irf_plot(hca, event.jr_mag.all*1e6, 'o', 'MarkerSize', 3);
+    ylabel(hca, {'$\vec{\mathbf{J}} \cdot \hat{\mathbf{r}}$','(\mu A/m^{2})'}, 'Interpreter', 'latex');
+    
+    hca = irf_panel('J*r pks vec');
+    irf_plot(hca, event.jr_mag.pks*1e6, 'linestyle', 'o');
+    ylabel(hca, {'$(\vec{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$','(\mu A/m^{2})'}, 'Interpreter', 'latex');
+end
+
+irf_plot_axis_align(1,h(1:5))
+irf_zoom(h(1:5),'x',tint_beob); % tint_beob [tint_beob(1)+300;tint_beob(1)+360]
+
+tmp.filename = fullfile('events/', event.tint_string,'Jr_mag');
 irf_print_fig(tmp.filename,'png');
 close(gcf);
 %% velocity distributions electrons
