@@ -1,4 +1,4 @@
-function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param, i)
+function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tint_beob, Param, i)
 %LOAD_ANALYZE_TINT_2 downloads needed data and tests criteria
 %   OUTPUT: omni data, mms data, only tint of 10min length, results of
 %   testing current direction
@@ -13,7 +13,7 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     tmp.V = irf_gse2gsm(irf_get_data_omni(tint, 'v,vx,vy,vz', 'omni_min'));
     tmp.Ms_n = irf_get_data_omni(tint, 'Ms,n', 'omni_min'); % 1 AU IP Magnetosonic Mach number, ion dens
     tmp.IND = find(tmp.Ms_n(:,2)>99);    tmp.Ms_n(tmp.IND,2) = NaN; % removing fillvalues
-    omni.time = EpochUnix(tmp.V(:,1:1)); % convert downloaded time to unix data
+    omni.time = EpochUnix(tmp.B(:,1:1)); % convert downloaded time to unix data
     omni.B_tot = TSeries(omni.time, [tmp.B(:,2:2)], 'to', 1); % GSE [nT]
     omni.Bxyz = TSeries(omni.time, [tmp.B(:,3:5)], 'to', 1); % GSM [nT]
     omni.V_tot = TSeries(omni.time, [tmp.V(:,2:2)], 'to', 1); % GSM [km/s]
@@ -44,8 +44,6 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     [mmsd.tetr.volTensor,mmsd.tetr.R_Center,mmsd.tetr.dR1,mmsd.tetr.dR2,mmsd.tetr.dR3,mmsd.tetr.dR4,mmsd.tetr.L,mmsd.tetr.E,mmsd.tetr.P] = c_4_r(mmsd.R1_gsm.data(:,2:4),mmsd.R2_gsm.data(:,2:4),mmsd.R3_gsm.data(:,2:4),mmsd.R4_gsm.data(:,2:4)); %time is same as mmsd.R?_gsm
     tetr_E = mean(mmsd.tetr.E, 'omitnan'); tetr_P = mean(mmsd.tetr.P, 'omitnan');
     
-    tetr_ok = mean(mmsd.tetr.E, 'omitnan') < 0.5 && mean(mmsd.tetr.P, 'omitnan')<0.5;
-    
     % Curlometer technique (Method from Schwartz et al. 1998)
     % J, divB, jxB, divTshear, divPb (from Example_MMS_B_E_J.m)
     if 1
@@ -55,7 +53,7 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     end
     % Test if mean cone angle is quasi perpendicular (OMNI)
     cone_a = mean(acosd(omni.Bxyz.data(:,1)./sqrt(omni.Bxyz.data(:,1).^2+omni.Bxyz.data(:,2).^2+omni.Bxyz.data(:,3).^2)), 'omitnan');
-    cone_a_ok = cone_a > 45 && cone_a < 135;
+    cone_a_ok = cone_a > 60 && cone_a < 120;
     % --> Maria told me to do this instead of looking at bow shock normal
     % direction, should be good enough criteria. 
     
@@ -82,20 +80,21 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     event.raw.ni = event.raw.ni.resample(event.raw.B1_gsm);
     
     %% Load PDist using mms.make_pdist
-    if 1
+    if 0
         % des = dual electron spectrometer
         tmp.filepath_and_filename = mms.get_filepath(irf_ssub('mms?_fpi_fast_l2_des-dist',Param.ic),tint_beob);
         c_eval('[event.ePDist?,event.ePDistError?] = mms.make_pdist(tmp.filepath_and_filename);', Param.ic)
         % dis = dual ion spectrometer
         tmp.filepath_and_filename = mms.get_filepath(irf_ssub('mms?_fpi_fast_l2_dis-dist',Param.ic),tint_beob);
         c_eval('[event.iPDist?,event.iPDistError?] = mms.make_pdist(tmp.filepath_and_filename);', Param.ic)
+            % load supporting data
+        %   SC potential
+        c_eval('event.scPot?=mms.db_get_ts(''mms?_edp_fast_l2_scpot'',''mms?_edp_scpot_fast_l2'',tint);', Param.ic);
+        %   MMS EDP Fast L2 DCE (electric field), DSL (despun spacecraft level)
+        c_eval('event.dslE?=mms.db_get_ts(''mms?_edp_fast_l2_dce'',''mms?_edp_dce_dsl_fast_l2'',tint);', Param.ic);  
+        
     end
-    % load supporting data
-    %   SC potential
-    c_eval('event.scPot?=mms.db_get_ts(''mms?_edp_fast_l2_scpot'',''mms?_edp_scpot_fast_l2'',tint);', Param.ic);
-    %   MMS EDP Fast L2 DCE (electric field), DSL (despun spacecraft level)
-    c_eval('event.dslE?=mms.db_get_ts(''mms?_edp_fast_l2_dce'',''mms?_edp_dce_dsl_fast_l2'',tint);', Param.ic);  
-    
+
     %% Curlometer technique (Method from Schwartz et al. 1998)
     % J, divB, jxB, divTshear, divPb (from Example_MMS_B_E_J.m)
     
@@ -105,13 +104,6 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
 
     % extract curlometer datapoints where divovercurl is < 1
     event.raw.divovercurl = event.raw.f.divB;     event.raw.divovercurl.data = abs(event.raw.divovercurl.data)./event.raw.f.j.abs.data; % error on j in percentage of value
-        j_ok = mean(event.raw.divovercurl.data, 'omitnan') < 0.3;
-    % Test if j error is low enough to use j data
-    if mean(event.raw.divovercurl.data, 'omitnan') < 0.3
-        fprintf('\nError on j small enough.: Q = %.2f\n', event.raw.divovercurl.data, 'omitnan')
-    else
-        fprintf("Error on j is too large. Look at j_ok(%d)\n", i)
-    end
 
     tmp.ind = find(event.raw.divovercurl.data < 1);
     event.raw.j=TSeries(event.raw.f.j.time(tmp.ind),event.raw.f.j.data(tmp.ind,:));
@@ -123,15 +115,15 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     %   change position array to size of j array
     c_eval('event.raw.Rres?  = event.raw.R?_gsm.resample(event.raw.j);');
     
-    % filter out "noise"
+%% filter out "noise"
     event.raw.j_mag.data = sqrt(event.raw.j.data(:,1).^2 + event.raw.j.data(:,2).^2 + event.raw.j.data(:,3).^2);
     event.raw.j_mag = TSeries(event.raw.j.time, sqrt(event.raw.j.data(:,1).^2 + event.raw.j.data(:,2).^2 + event.raw.j.data(:,3).^2));
     [event.avgj, event.medj, event.stdj] = get_stats(event.raw.j_mag.data);
     % Find peaks in Jmag and create corresponding timeseries
-    nslv = 2*event.stdj; 
-    pkprom = 0.03*1e-6;
+    nslv = event.medj + 2*event.stdj; 
+    %nslv = 2*event.stdj; 
+    pkprom = 0.07*1e-6;
     [event.pksj,event.locsj]=findpeaks(event.raw.j_mag.data,'MinPeakHeight',event.stdj*2, 'MinPeakProminence',pkprom); %'MinPeakProminence',0.07*1e-6
-    
     % building TSerieses with only j peaks data
     % j_mag
     tmp.D_pks = zeros(size(event.raw.j_mag.data));
@@ -145,7 +137,7 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     
     %% Particle moments method
     % calculate J = n_e*e*(v_i-v_e)
-    mmsd.J_pmm = event.raw.Ni1*1e6*1.602*1e-19*(event.raw.Vi1_gsm - event.raw.Ve1_gsm)*1e3;
+    event.J_pmm = event.raw.Ni1*1e6*1.602*1e-19*(event.raw.Vi1_gsm - event.raw.Ve1_gsm)*1e3;
     e = 1.602*10^(-19);
     %event.d_J_pmm = ((e*(event.raw.Vi1_gsm - event.raw.Ve1_gsm)*d_n_p)^2+(event.raw.Ni1*e*d_v_p)^2+(event.raw.Ni1*e*d_v_e)^2)^0.5;
     %% J*r stuff
@@ -162,6 +154,13 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     %   towards earth - it is counterintuitive)
     %   case  0 - orthogonal current in ms directions
     %   case -1 - antiparallel current away from earth 
+
+    % right direction
+    if mean(event.raw.R1_gsm.data(:,2))> 0 % dawnside +y, J*r should point in +r, away from earth
+        rd = 1;
+    else
+        rd = -1;
+    end
     
     % without j noiselevelstuff (including all j data)
     %   dot product for that data set: elemetwise multiplication, rowwise summation
@@ -177,10 +176,18 @@ function [omni, mmsd, event, data] = load_analyze_tint_2(tint, tint_beob, Param,
     % J*r direction
     j_uv_all = jr_data_ana(event.uv.jr_all.data, event.raw.R1_gsm.data);
     j_uv_pks = jr_data_ana(event.uv.jr_pks.data, event.raw.R1_gsm.data);
-    % J*r including magnitude of j
-    j_maguv_all = jr_data_ana(event.jr_mag.all.data, event.raw.R1_gsm.data);
-    j_maguv_pks = jr_data_ana(event.jr_mag.pks.data, event.raw.R1_gsm.data);
+
+    % Integrate over all j_maguv to see in which direction the overall
+    % current goes
+    tot_curr_all = sum(event.jr_mag.all.data); % Sum of all current values
+    tot_curr_pks = sum(event.jr_mag.pks.data);
+
+    % summing up over magnitude of currents that are pointing towards / away (above
+    % |0.25|) 
+    tot_curr_a25_all = sum(event.jr_mag.all.data(find(event.uv.jr_all.data > 0.25)))+ sum(event.jr_mag.all.data(find(event.uv.jr_all.data < -0.25)));
+    tot_curr_a25_pks = sum(event.jr_mag.pks.data(find(event.uv.jr_pks.data > 0.25)))+sum(event.jr_mag.pks.data(find(event.uv.jr_pks.data < -0.25)));
+
     %% putting everything in a table
-    data = [cone_a, cone_a_ok, j_maguv_all(:,6), j_maguv_pks(:,6),j_uv_all(:,6),j_uv_pks(:,6), j_ok, nslv, position, tetr_E, tetr_P,tetr_ok];
-   
+    data = [cone_a, nslv, position, tetr_E, tetr_P];
+    current_info = [rd, j_uv_all(:,6),j_uv_pks(:,6), tot_curr_all*1e6, tot_curr_pks*1e6, tot_curr_a25_all*1e6, tot_curr_a25_pks*1e6];
 end

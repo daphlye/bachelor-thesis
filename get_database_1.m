@@ -11,6 +11,8 @@
 %% Load data 
 
 % Input parameters
+Bmindestens = 0; %-10 %nT
+%vmaximal = 
 
 trange.yr1 = irf.tint('2015-09-01T00:00:00/2016-06-01T00:00:00');
 trange.yr2 = irf.tint('2016-09-01T00:00:00/2017-06-01T00:00:00');
@@ -26,6 +28,8 @@ trange.yr8 = irf.tint('2022-09-01T00:00:00/2023-07-01T00:00:00');
 % and september
 
 %-------------------------------------
+%parameters for analysing current
+
 
 % Step 1: Read the CSV file
 filename = 'inp/magnetosheath_region_list.csv';  % find the Database at https://doi.org/10.5281/zenodo.10491878
@@ -94,20 +98,23 @@ for k = 1:length(years) % downloading and whole routine for all years
                 if (NaNalyzer(wind.Ms, 0.1) == 1) && all(wind.Ms(~isnan(wind.Ms))<5) % data gaps and Ms Machnumber 
                     counter.Ms = counter.Ms + 1;
     % Magnetic field 
+                    wind.Bx = Bxyz.data(subwind,1:1);
+                    wind.By = Bxyz.data(subwind,2:2);
                     wind.Bz = Bxyz.data(subwind,3:3);
                     wind.ca = atan2d(Bxyz.data(subwind,2:2),Bxyz.data(subwind,3:3)); % calc. clock angle between By,z
                     % takes into account, that B comp can be negative
-        % Data gaps &&  Bz variies less than 6nT && Bz<-15nT && CA close to
-        % 180 deg && CA doesnt vary more than 30 deg
-        % varys less than 30 deg
-                    if (NaNalyzer(wind.Bz, 0.1) == 1) && (dev_check(wind.Bz, 0.1*mean(wind.Bz, 'omitnan')) == 1) && all(wind.Bz(~isnan(wind.Bz))<(-15)) && all(abs(wind.ca(~isnan(wind.ca)))>135) && (dev_check(wind.ca, 30) == 1) % its ok if I only check Bz - Bx, By become NaN simultaneously
+        % Data gaps &&  Bz variies less than 5nT && CA close to
+        % 180 deg && CA varys less than 30 deg
+        % before: if (NaNalyzer(wind.Bz, 0.1) == 1) && (dev_check(wind.Bz,
+        % 5) == 1) && all(wind.Bz(~isnan(wind.Bz))<(-15)) && all(abs(wind.ca(~isnan(wind.ca)))>135) && (dev_check(wind.ca, 30) == 1) mean(
+                    if (NaNalyzer(wind.Bz, 0.1) == 1) && (dev_check(wind.Bx, 2.5) == 1) && (dev_check(wind.By, 2.5) == 1) && (dev_check(wind.Bz, 2.5) == 1) && all(wind.Bz(~isnan(wind.Bz))<(Bmindestens)) && all(abs(wind.ca(~isnan(wind.ca)))>135) %&& (dev_check(wind.ca, 30) == 1) % its ok if I only check Bz - Bx, By become NaN simultaneously
                         % instead of 0.1*mean(wind.Bz, 'omitnan') try
                         % 6*1e(-9)
                         % - variation of 10% (dev_check) doesnt make too much sense.
                         counter.B = counter.B + 1;
     % Solar Wind speed
                         wind.v = V_tot.data(subwind);
-                        if (NaNalyzer(wind.v, 0.1) == 1) && (dev_check(wind.v, 50) == 1) && all(wind.v(~isnan(wind.v))<(500))
+                        if (NaNalyzer(wind.v, 0.1) == 1) && (dev_check(wind.v, 50) == 1) % && all(wind.v(~isnan(wind.v))<(500)) % exclude last command maybe more tints then
                             counter.v = counter.v + 1;
     % Particle density
                             wind.np = np.data(subwind);
@@ -148,56 +155,12 @@ for k = 1:length(years) % downloading and whole routine for all years
     end
     fprintf('Finished! \n \n')
 end
+good_time = filter_out_reoccurences(good_time, 1); % filter if tints occur multiple times and only use the first tme it occurrs
 
 % Confirmation and presenting results
 if time_start_omni == (time_start.epoch(end)-(15*60))
-    fprintf('All time intervals checked. \n ---- number of windows passed ---- \n Magnetosonic Mach Number: %d \n IMF: %d \n SW speed: %d \n Density: %d \n---------------------------------- \n', counter.Ms, counter.B, counter.v, counter.np)
+    fprintf('All time intervals checked. \n ---- number of windows passed ---- \n Magnetosonic Mach Number: %d \n IMF: %d \n SW speed: %d \n Density: %d \n resulting number of tints: %d \n Density: %d \n---------------------------------- \n', counter.Ms, counter.B, counter.v, counter.np, length(good_time))
 else 
     fprintf('Something went wrong.\n')
 end
-
-% converting all time intervals as irf_tint data into a stiPDruct called
-% tints:
-for i = 1:length(good_time)
-    tmp.fieldName = ['tint' num2str(i)];
-    tmp.start = irf_time(good_time(i,1), 'epoch>epochtt');
-    tmp.stop = irf_time(good_time(i,2), 'epoch>epochtt');
-    tints.(tmp.fieldName) = irf.tint(tmp.start, tmp.stop); 
-end
-
-% check if all timeintervals are within magnetosheath tints in the "data"
-% table
-tmp.ntint = fieldnames(tints);
-for i = 1:numel(tmp.ntint)
-    tmp.tint = tints.(tmp.ntint{i});
-    if length(tmp.tint)==2
-        for j = 1:height(data)
-            if all((tmp.tint+15*60)>=EpochUnix(posixtime(data{j,1})) & tmp.tint<=EpochUnix(posixtime(data{j,2})))
-                counter.good_tint = counter.good_tint + 1;
-            end
-        end
-        if counter.good_tint == counter.bad_tint+1
-            counter.bad_tint = counter.bad_tint+1;
-        elseif counter.good_tint == counter.bad_tint
-            fprintf('Epoch data in field %s is NOT within any time ranges in the data table. \n', tmp.ntint{i});
-        else
-            fprintf("something I dont understand is happening. look at code in line 170ff.\n");
-        end
-    else
-        fprintf('the tint %d in tints does not have two entries.\n', i)
-    end
-end
-if counter.good_tint == counter.bad_tint
-    fprintf("everything worked out fine:)\n"); 
-    fprintf('Extracted %d time intervals that fit the criteria. \n', counter.good_tint);
-else
-    fprintf("sth went wrong. \n");
-end
-
-% workspace info
-workspace_info = whos;
-total_bytes = sum([workspace_info.bytes])*10^-6;
-fprintf('Total memory used: %.2f MB ... Giving free workspace. \n', total_bytes); 
-
-clearvars -except tints good_time counter Param;
-
+clearvars -except good_time Param;
