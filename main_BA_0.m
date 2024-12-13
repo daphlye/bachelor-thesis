@@ -45,7 +45,7 @@ for i = 1:height(good_time)
     save(['events/data/', event.tint_string,'_mms_data.mat'], 'event');
     
     % plot tint
-    if 0
+    if 1
         plot_tint_3(omni, mmsd, event,tmp.tint, tmp.tint_beob, Param);
     end
     fprintf('\nTime interval number %d/%d: Finished. \n', i, length(good_time));

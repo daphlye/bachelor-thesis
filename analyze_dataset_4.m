@@ -40,7 +40,7 @@ fclose(fid);
     fclose(fid);  
 
 
-% calculate Jpks_>0.25/Jpks
+%% calculate Jpks_>0.25/Jpks
 parts_ab25 = curr_arr(:,7)./curr_arr(:,5);
 newcurr_arr = zeros(length(curr_arr), 6);
 newcurr_arr(:,1:5) = curr_arr(:,1:5);
@@ -54,12 +54,12 @@ comat_arr(minusy,3:4) = newcurr_arr(minusy,4:5)*(-1); % changing sign of values 
 colorMatrix = array2table(comat_arr);
 eventMatrix = newcurr_arr(:,2:end);   % Matrix for displaying numbers (with correct sign of y)
 criteriaLabels = {'(a) $(\mathbf{\hat{J}}\cdot\mathbf{\hat{r}})_{all} [\%]$', '(b) $(\mathbf{\hat{J}}\cdot\mathbf{\hat{r}})_{peaks} [\%]$', '(c) $(\mathbf{\vec{J}}\cdot\mathbf{\hat{r}})_{all} [\mu A/ m^2]$', ...
-    '(d) $(\mathbf{\vec{J}}\cdot\mathbf{\hat{r}})_{peaks} [\mu A/ m^2]$', '(e) $(\frac{\mathbf{\vec{J}}\cdot\mathbf{\hat{r}}_{> 0.25}}{\mathbf{\vec{J}}\cdot\mathbf{\hat{r}}})_{peaks} [\%]$'};
+    '(d) $(\mathbf{\vec{J}}\cdot\mathbf{\hat{r}})_{peaks} [nA/ m^2]$', '(e) $(\frac{\mathbf{\vec{J}}\cdot\mathbf{\hat{r}}_{> 0.25}}{\mathbf{\vec{J}}\cdot\mathbf{\hat{r}}})_{peaks} [\%]$'};
 eventLabels = 1:length(good_time);
 
-%manually exclude event 13 because current values exceed 
+%manually exclude event 9 because current values exceed 
 comatwo13 = comat_arr;
-comatwo13(13, :) = 0;
+comatwo13(9, :) = 0;
 
 % create colorbar limits for each column
 limit_perc = [0,100];
@@ -71,3 +71,109 @@ limit_perc_special = [-100,100]; % includes negative percentage because
 colorlimitsArray = {limit_perc, limit_perc, limit_all, limit_pks, limit_perc_special}; % limit_perc, limit_perc, limit_all, limit_pks, limit_alla25, limit_pksa25
 % make correlation table
 correlation_matrix_pmy(colorMatrix, eventMatrix, eventLabels, criteriaLabels, colorlimitsArray)
+
+
+%% calculating mean current density 
+mean_curr = mean(newcurr_arr(:, 5));
+
+%% showcase interval of good SW situation 
+tint2 = good_time(2, :); %irf.tint('2024-12-12T08:00:00.000Z/2024-12-12T10:00:00.000Z');
+tint = [tint2(1)-60*60,tint2(1)+60*90]; % take 2 hour tint around first interval of many or so. 
+
+    tmp.B = irf_get_data_omni(tint, 'b,bx,byGSM,bzGSM', 'omni_min');% loads 1-min OMNI data flow speed velocity in gsm coordinates (OMNI v data is in gse) for selected tint
+    tmp.V = irf_gse2gsm(irf_get_data_omni(tint, 'v,vx,vy,vz', 'omni_min'));
+    tmp.Ms_n = irf_get_data_omni(tint, 'Ms,n', 'omni_min'); % 1 AU IP Magnetosonic Mach number, ion dens
+    tmp.IND = find(tmp.Ms_n(:,2)>99);    tmp.Ms_n(tmp.IND,2) = NaN; % removing fillvalues
+    omni.time = EpochUnix(tmp.B(:,1:1)); % convert downloaded time to unix data
+    omni.B_tot = TSeries(omni.time, [tmp.B(:,2:2)], 'to', 1); % GSE [nT]
+    omni.Bxyz = TSeries(omni.time, [tmp.B(:,3:5)], 'to', 1); % GSM [nT]
+    omni.V_tot = TSeries(omni.time, [tmp.V(:,2:2)], 'to', 1); % GSM [km/s]
+    omni.Vxyz = TSeries(omni.time, [tmp.V(:,3:5)], 'to', 1); % GSM [km/s]
+    omni.Ms = TSeries(omni.time, [tmp.Ms_n(:,2:2)], 'to', 1); % [#]
+    omni.np = TSeries(omni.time, [tmp.Ms_n(:,3:3)], 'to', 1); % [cc]
+%%
+h = irf_plot(4,'newfigure');
+
+hca = irf_panel('M_{MS, OMNI}');
+irf_plot(hca,omni.Ms);
+ylabel(hca,{'M_{MS}','(#)'},'Interpreter','tex');
+irf_zoom(hca,'x',tint);
+irf_zoom(hca,'y');
+%irf_legend(hca,'(a)',[0.99 0.98],'color','k')
+
+hca = irf_panel('B_{OMNI}');
+irf_plot(hca,omni.Bxyz);
+ylabel(hca,{'B_{GSM}','(nT)'},'Interpreter','tex');
+irf_legend(hca,{'B_{x}','B_{y}','B_{z}'},[0.88 0.10])
+%irf_zoom(hca,'x',tint);
+%irf_legend(hca,'(b)',[0.99 0.98],'color','k')
+
+hca = irf_panel('v_{OMNI}');
+irf_plot(hca,omni.Vxyz);
+ylabel(hca,{'v_{GSM}','(km/s)'},'Interpreter','tex');
+irf_legend(hca,{'v_{x}','v_{y}','v_{z}'},[0.88 0.10])
+%irf_zoom(hca,'x',tint);
+%irf_legend(hca,'(c)',[0.99 0.98],'color','k')
+
+hca = irf_panel('ni_{OMNI}'); % set(hca,'ColorOrder',mmsColors)
+irf_plot(hca,omni.np);
+ylabel(hca,{'n_{p}','(#/cm^{3})'},'Interpreter','tex'); % Units confirmed (SPDF)
+%set(hca,'yscale','log');
+%irf_zoom(hca,'y',[0 10]);
+%irf_legend(hca,'(d)',[0.99 0.98],'color','k')
+irf_plot_axis_align(1,h(1:4))
+irf_zoom(h(1:4),'x',tint);
+irf_pl_mark(h,tint2)
+irf_pl_number_subplots
+%saveas(h, 'plots/tint1/omni');  % Save the current figure as a .fig file
+tmp.filename = fullfile('events/plots/','omni/');
+if ~exist(tmp.filename, 'dir')
+    mkdir(tmp.filename);
+end
+tmp.filename = fullfile('events/plots/omni/',event.tint_string);
+irf_print_fig(tmp.filename,'png');
+%%
+h = irf_figure(1,5,'reset');
+% B components
+hca = irf_panel('B_{MMS1}');
+irf_plot(hca,event.raw.B1_gsm);
+ylabel(hca,{'B_{x,y,z, GSM}','(nT)'},'interpreter','tex');
+legend(hca,{'B_{x}','B_{y}','B_{z}'},'Location', 'southeast')
+% B magnitude
+magnitude = hypot(hypot(event.raw.B1_gsm.data(:,1), event.raw.B1_gsm.data(:,2)), event.raw.B1_gsm.data(:,3));
+B_mag = TSeries(event.raw.B1_gsm.time,magnitude);
+hca = irf_panel('B_{mag}');
+irf_plot(hca,B_mag);
+ylabel(hca,{'B_{tot, GSM}','(nT)'},'interpreter','tex');
+% n
+if 1
+    mmsColors=[0 0 0; 1 0 0 ; 0 0.5 0 ; 0 0 1];
+    hca = irf_panel('n_{p}'); set(hca,'ColorOrder',mmsColors)
+    irf_plot(hca,event.raw.Ni1);
+    ylabel(hca,{'n_{p}','(#/cm^{3})'},'Interpreter','tex');
+end
+% current
+hca = irf_panel('|J|'); % currently in micro Ampere
+irf_plot(hca, event.raw.j_mag*1e6);
+hold(hca,'on');
+irf_plot(hca, event.nslv*1e6);
+irf_plot(hca, event.Jmag_pks*1e6, 'linestyle', 'x');
+hold(hca,'off');
+grid on;
+ylabel(hca, {'|J_{GSM}|','(\mu A/m^{2})'},'interpreter','tex');
+legend(hca,{'data','noise level','peaks'},'Location', 'east');
+
+if 1
+    hca = irf_panel('J*r pks vec');
+    irf_plot(hca, event.jr_mag.pks*1e6, 'linestyle', 'o');
+    ylabel(hca, {'$(\vec{\mathbf{J}} \cdot \hat{\mathbf{r}})_{peaks}$','($\mu A/m^{2}$)'}, 'interpreter', 'latex');
+   
+end
+
+irf_plot_axis_align(1,h(1:5))
+tint3 = irf.tint('2015-12-31T23:28:00.000Z/2015-12-31T23:34:00.000Z');
+irf_zoom(h(1:5),'x',tint3);
+irf_pl_mark(h,tint_exp)
+tint_exp = irf.tint('2015-12-31T23:30:00.000Z/2015-12-31T23:32:00.000Z');
+irf_pl_mark(h,tint_exp)
+irf_pl_number_subplots

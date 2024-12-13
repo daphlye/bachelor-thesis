@@ -35,7 +35,7 @@ function ok_arr = filter_mms_data(good_time, Param)
             [tetr.volTensor,tetr.R_Center,tetr.dR1,tetr.dR2,tetr.dR3,tetr.dR4,tetr.L,tetr.E,tetr.P] = c_4_r(event.R1_gsm.data(:,2:4),event.R2_gsm.data(:,2:4),event.R3_gsm.data(:,2:4),event.R4_gsm.data(:,2:4)); %time is same as mmsd.R?_gsm
             tetr_E = mean(tetr.E, 'omitnan'); tetr_P = mean(tetr.P, 'omitnan');
             
-            tetr_ok = mean(tetr.E, 'omitnan') < 0.5 && mean(tetr.P, 'omitnan') < 0.5;
+            tetr_ok = mean(tetr.E, 'omitnan') < 0.3 && mean(tetr.P, 'omitnan') < 0.3;
         end
         
         if 1 %j_ok == 1 && tetr_ok == 1

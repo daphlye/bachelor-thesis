@@ -189,5 +189,5 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
 
     %% putting everything in a table
     data = [cone_a, nslv, position, tetr_E, tetr_P];
-    current_info = [rd, j_uv_all(:,6),j_uv_pks(:,6), tot_curr_all*1e6, tot_curr_pks*1e6, tot_curr_a25_all*1e6, tot_curr_a25_pks*1e6];
+    current_info = [rd, j_uv_all(:,6),j_uv_pks(:,6), tot_curr_all*1e6, tot_curr_pks*1e9, tot_curr_a25_all*1e6, tot_curr_a25_pks*1e9];
 end
