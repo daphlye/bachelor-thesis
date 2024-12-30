@@ -1,4 +1,4 @@
-function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tint_beob, Param, i)
+function [omni, mmsd, event, data, current_info, errors_for_table, error] = load_analyze_tint_2(tint, tint_beob, Param, i)
 %LOAD_ANALYZE_TINT_2 downloads needed data and tests criteria
 %   OUTPUT: omni data, mms data, only tint of 10min length, results of
 %   testing current direction
@@ -13,7 +13,7 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
     tmp.V = irf_gse2gsm(irf_get_data_omni(tint, 'v,vx,vy,vz', 'omni_min'));
     tmp.Ms_n = irf_get_data_omni(tint, 'Ms,n', 'omni_min'); % 1 AU IP Magnetosonic Mach number, ion dens
     tmp.IND = find(tmp.Ms_n(:,2)>99);    tmp.Ms_n(tmp.IND,2) = NaN; % removing fillvalues
-    omni.time = EpochUnix(tmp.V(:,1:1)); % convert downloaded time to unix data
+    omni.time = EpochUnix(tmp.B(:,1:1)); % convert downloaded time to unix data
     omni.B_tot = TSeries(omni.time, [tmp.B(:,2:2)], 'to', 1); % GSE [nT]
     omni.Bxyz = TSeries(omni.time, [tmp.B(:,3:5)], 'to', 1); % GSM [nT]
     omni.V_tot = TSeries(omni.time, [tmp.V(:,2:2)], 'to', 1); % GSM [km/s]
@@ -53,7 +53,7 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
     end
     % Test if mean cone angle is quasi perpendicular (OMNI)
     cone_a = mean(acosd(omni.Bxyz.data(:,1)./sqrt(omni.Bxyz.data(:,1).^2+omni.Bxyz.data(:,2).^2+omni.Bxyz.data(:,3).^2)), 'omitnan');
-    cone_a_ok = cone_a > 45 && cone_a < 135;
+    cone_a_ok = cone_a > 60 && cone_a < 120;
     % --> Maria told me to do this instead of looking at bow shock normal
     % direction, should be good enough criteria. 
     
@@ -63,6 +63,7 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
     c_eval('event.raw.B?_gsm = mms.db_get_ts(''mms?_fgm_srvy_l2'',''mms?_fgm_b_gsm_srvy_l2'',tint_beob);',Param.SCall);
     % resampling on B since this has the highest resolution
     c_eval('event.raw.B?_gsm = event.raw.B?_gsm.resample(mmsd.B1_gsm);',2:4);
+    
     c_eval('event.raw.R?_gsm = mms.db_get_ts(''mms?_fgm_srvy_l2'',''mms?_fgm_r_gsm_srvy_l2'',tint_beob);', Param.SCall); % GSM [km] evaluates data for R 
     c_eval('event.raw.R?_gsm = event.raw.R?_gsm.resample(event.raw.R1_gsm);',2:4);
     c_eval('event.raw.Rres?  = event.raw.R?_gsm.resample(event.raw.B1_gsm);');
@@ -80,20 +81,21 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
     event.raw.ni = event.raw.ni.resample(event.raw.B1_gsm);
     
     %% Load PDist using mms.make_pdist
-    if 1
+    if 0
         % des = dual electron spectrometer
         tmp.filepath_and_filename = mms.get_filepath(irf_ssub('mms?_fpi_fast_l2_des-dist',Param.ic),tint_beob);
         c_eval('[event.ePDist?,event.ePDistError?] = mms.make_pdist(tmp.filepath_and_filename);', Param.ic)
         % dis = dual ion spectrometer
         tmp.filepath_and_filename = mms.get_filepath(irf_ssub('mms?_fpi_fast_l2_dis-dist',Param.ic),tint_beob);
         c_eval('[event.iPDist?,event.iPDistError?] = mms.make_pdist(tmp.filepath_and_filename);', Param.ic)
+            % load supporting data
+        %   SC potential
+        c_eval('event.scPot?=mms.db_get_ts(''mms?_edp_fast_l2_scpot'',''mms?_edp_scpot_fast_l2'',tint);', Param.ic);
+        %   MMS EDP Fast L2 DCE (electric field), DSL (despun spacecraft level)
+        c_eval('event.dslE?=mms.db_get_ts(''mms?_edp_fast_l2_dce'',''mms?_edp_dce_dsl_fast_l2'',tint);', Param.ic);  
+        
     end
-    % load supporting data
-    %   SC potential
-    c_eval('event.scPot?=mms.db_get_ts(''mms?_edp_fast_l2_scpot'',''mms?_edp_scpot_fast_l2'',tint);', Param.ic);
-    %   MMS EDP Fast L2 DCE (electric field), DSL (despun spacecraft level)
-    c_eval('event.dslE?=mms.db_get_ts(''mms?_edp_fast_l2_dce'',''mms?_edp_dce_dsl_fast_l2'',tint);', Param.ic);  
-    
+
     %% Curlometer technique (Method from Schwartz et al. 1998)
     % J, divB, jxB, divTshear, divPb (from Example_MMS_B_E_J.m)
     
@@ -101,6 +103,16 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
     % uses first three rows for x y z. (confirmed looking at c_4_j.m >
     % c_4_grad.m)
 
+    % calculating error on j
+    error.B_gsm = ones(length(event.raw.B1_gsm),1); error.B_gsm = TSeries(event.raw.B1_gsm.time,error.B_gsm*0.1*10^(-9));
+    error.Jx = sqrt(((error.B_gsm.data(:,1))./(event.raw.Rres2.data(:,1)-event.raw.Rres1.data(:,1))).^2+((error.B_gsm.data)./(event.raw.Rres3.data(:,1)-event.raw.Rres2.data(:,1))).^2+((error.B_gsm.data)./(event.raw.Rres1.data(:,1)-event.raw.Rres3.data(:,1))).^2);
+    error.Jy = sqrt(((error.B_gsm.data(:,1))./(event.raw.Rres2.data(:,2)-event.raw.Rres1.data(:,2))).^2+((error.B_gsm.data)./(event.raw.Rres3.data(:,2)-event.raw.Rres2.data(:,2))).^2+((error.B_gsm.data)./(event.raw.Rres1.data(:,2)-event.raw.Rres3.data(:,2))).^2);
+    error.Jz = sqrt(((error.B_gsm.data(:,1))./(event.raw.Rres2.data(:,3)-event.raw.Rres1.data(:,3))).^2+((error.B_gsm.data)./(event.raw.Rres3.data(:,3)-event.raw.Rres2.data(:,3))).^2+((error.B_gsm.data)./(event.raw.Rres1.data(:,3)-event.raw.Rres3.data(:,3))).^2);
+    
+    Jx=event.raw.f.j.data(:,1);
+    Jy=event.raw.f.j.data(:,2);
+    Jz=event.raw.f.j.data(:,3);
+    error.J = sqrt(((Jx./sqrt(Jx.^2+Jy.^2+Jz.^2)).*error.Jx).^2 + ((Jy./sqrt(Jx.^2+Jy.^2+Jz.^2)).*error.Jy).^2 + ((Jy./sqrt(Jx.^2+Jy.^2+Jz.^2)).*error.Jy).^2);
     % extract curlometer datapoints where divovercurl is < 1
     event.raw.divovercurl = event.raw.f.divB;     event.raw.divovercurl.data = abs(event.raw.divovercurl.data)./event.raw.f.j.abs.data; % error on j in percentage of value
 
@@ -113,36 +125,55 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
     event.raw.divPb=TSeries(event.raw.f.divPb.time(tmp.ind),event.raw.f.divPb.data(tmp.ind));
     %   change position array to size of j array
     c_eval('event.raw.Rres?  = event.raw.R?_gsm.resample(event.raw.j);');
-    
+    error.Jused = TSeries(event.raw.j.time,error.J(tmp.ind,:));
+    error.Jvec_used = [error.Jx(tmp.ind,:), error.Jy(tmp.ind,:), error.Jz(tmp.ind,:)];
 %% filter out "noise"
     event.raw.j_mag.data = sqrt(event.raw.j.data(:,1).^2 + event.raw.j.data(:,2).^2 + event.raw.j.data(:,3).^2);
     event.raw.j_mag = TSeries(event.raw.j.time, sqrt(event.raw.j.data(:,1).^2 + event.raw.j.data(:,2).^2 + event.raw.j.data(:,3).^2));
     [event.avgj, event.medj, event.stdj] = get_stats(event.raw.j_mag.data);
     % Find peaks in Jmag and create corresponding timeseries
-    nslv = 2*event.stdj; 
+    nslv = event.medj + 2*event.stdj; % 2*event.stdj; 
+
     pkprom = 0.07*1e-6;
     [event.pksj,event.locsj]=findpeaks(event.raw.j_mag.data,'MinPeakHeight',event.stdj*2, 'MinPeakProminence',pkprom); %'MinPeakProminence',0.07*1e-6
     % building TSerieses with only j peaks data
     % j_mag
+    % test if errJ and J same size
+    test = length(error.Jused.data) == length(event.raw.j_mag.data);
+    if test == 0
+        fprintf('Error of J not same size as J')
+    end
     tmp.D_pks = zeros(size(event.raw.j_mag.data));
     tmp.D_pks(:) = nan; tmp.D_pks(event.locsj) = event.pksj; 
-    
+    %tmp.errJpks = zeros(size(error.Jused.data)); tmp.errJpks(:) = nan; 
+    %tmp.errJpks(event.locsj) = error.Jused.data(event.locsj);
+
     event.Jmag_pks = TSeries(event.raw.j_mag.time, tmp.D_pks); %j magnitude peaks
+    error.Jmag_pks = error.Jused.data(event.locsj);
     event.j_pks = TSeries(event.raw.j.time(event.locsj), event.raw.j.data(event.locsj,:)); %j peaks
-    
-    % noise level definition from salinas:
-    event.nslv = TSeries(event.raw.j_mag.time, (2*event.stdj)*ones(length(event.raw.j_mag.time), 1)); % noise level definition from salinas
+    error.J_pks = error.Jvec_used(event.locsj,:);
+    % noise level definition from salinas but changed:
+    event.nslv = TSeries(event.raw.j_mag.time, nslv*ones(length(event.raw.j_mag.time), 1)); % noise level definition from salinas
     
     %% Particle moments method
     % calculate J = n_e*e*(v_i-v_e)
-    event.J_pmm = event.raw.Ni1*1e6*1.602*1e-19*(event.raw.Vi1_gsm - event.raw.Ve1_gsm)*1e3;
-    e = 1.602*10^(-19);
+    if 0
+        event.J_pmm = event.raw.Ni1*1e6*1.602*1e-19*(event.raw.Vi1_gsm - event.raw.Ve1_gsm)*1e3;
+        e = 1.602*10^(-19);
+    end
     %event.d_J_pmm = ((e*(event.raw.Vi1_gsm - event.raw.Ve1_gsm)*d_n_p)^2+(event.raw.Ni1*e*d_v_p)^2+(event.raw.Ni1*e*d_v_e)^2)^0.5;
     %% J*r stuff
     % calculating J*r direction
     %calculating unit vector of j and r     confirm where fgm r comes from!!! otherwise use mec
     event.uv.j_all = TSeries(event.raw.j.time, unit_vector(event.raw.j.data));
     event.uv.j_pks = TSeries(event.j_pks.time, unit_vector(event.j_pks.data));
+    %calculating error
+    if length(error.Jvec_used) ~= length(event.raw.j.data)
+        fprintf('Error of J not same size as J \n')
+    end
+    error.Juv = sqrt(((error.Jvec_used./vecnorm(event.raw.j.data, 2, 2)).^2) + (event.raw.j.data ./(event.raw.j_mag.data.^2).*error.Jused.data).^2);
+    error.Juv_pks = error.Juv(event.locsj,:);
+
     % calculating center of tetrahedra spacecraft from resampled R data
     [event.tetr.volTensor,event.tetr.R_Center, event.tetr.dR1,event.tetr.dR2,event.tetr.dR3,event.tetr.dR4,event.tetr.L,event.tetr.E,event.tetr.P] = c_4_r(event.raw.Rres1.data(:,2:4),event.raw.Rres2.data(:,2:4),event.raw.Rres3.data(:,2:4),event.raw.Rres4.data(:,2:4));
     event.uv.r = TSeries(event.raw.Rres1.time, unit_vector(event.tetr.R_Center)); 
@@ -169,8 +200,15 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
     event.jr_mag.all = TSeries(event.raw.j.time, sum(event.raw.j.data .* event.uv.r.data, 2));
     % with noiselevel limitation (only peaks)
     event.jr_mag.pks = TSeries(event.j_pks.time, sum(event.j_pks.data .* event.uv.r.data(event.locsj), 2));
-    %% analyzing
+
+    % calculate error
+    error.jr_uv = sum(error.Juv .* event.uv.r.data, 2);
+    error.jr_uv_pks = sum(error.Juv_pks .* event.uv.r.data(event.locsj), 2);
+    error.jr_mag = sum(error.Jused.data .* event.uv.r.data, 2);
+    error.jr_mag_pks = sum(error.Jmag_pks .* event.uv.r.data(event.locsj), 2);
+    % analyzing
     position = [mean(event.raw.R1_gsm.data(:,1)./6378), mean(event.raw.R1_gsm.data(:,2)./6378), mean(event.raw.R1_gsm.data(:,3)./6378)]; 
+    error_position = [std(event.raw.R1_gsm.data(:,1)./6378),std(event.raw.R1_gsm.data(:,2)./6378),std(event.raw.R1_gsm.data(:,3)./6378)];
     % J*r direction
     j_uv_all = jr_data_ana(event.uv.jr_all.data, event.raw.R1_gsm.data);
     j_uv_pks = jr_data_ana(event.uv.jr_pks.data, event.raw.R1_gsm.data);
@@ -182,10 +220,29 @@ function [omni, mmsd, event, data, current_info] = load_analyze_tint_2(tint, tin
 
     % summing up over magnitude of currents that are pointing towards / away (above
     % |0.25|) 
-    tot_curr_a25_all = sum(event.jr_mag.all.data(find(event.uv.jr_all.data > 0.25)));
-    tot_curr_a25_pks = sum(event.jr_mag.pks.data(find(event.jr_mag.pks.data > 0.25)));
-
+    tot_curr_a25_all = sum(event.jr_mag.all.data(find(event.uv.jr_all.data > 0.25)))+ sum(event.jr_mag.all.data(find(event.uv.jr_all.data < -0.25)));
+    tot_curr_a25_pks = sum(event.jr_mag.pks.data(find(event.uv.jr_pks.data > 0.25)))+sum(event.jr_mag.pks.data(find(event.uv.jr_pks.data < -0.25)));
+        % error calculation        
+        % for mag total value of current
+    error.tot_curr_all = abs(sum(error.jr_mag(find(event.uv.jr_all.data > 0)))+sum(error.jr_mag(find(event.uv.jr_all.data < 0))));
+    error.tot_curr_pks = abs(sum(error.jr_mag_pks(find(event.uv.jr_pks.data > 0)))+sum(error.jr_mag_pks(find(event.uv.jr_pks.data < 0))));
+    error.tot_curr_a25_pks = abs(sum(error.jr_mag_pks(find(event.uv.jr_all.data(event.locsj) > 0.25)))+ sum(error.jr_mag_pks(find(event.uv.jr_all.data(event.locsj) < -0.25))));
+    
     %% putting everything in a table
     data = [cone_a, nslv, position, tetr_E, tetr_P];
-    current_info = [rd, j_uv_all(:,6),j_uv_pks(:,6), tot_curr_all, tot_curr_pks, tot_curr_a25_all, tot_curr_a25_pks];
+    current_info = [rd, j_uv_all(:,6),j_uv_pks(:,6), tot_curr_all*1e6, tot_curr_pks*1e9, tot_curr_a25_all*1e6, tot_curr_a25_pks*1e9];
+
+    errors_for_table = [error.tot_curr_all(1,1)*1e6, error.tot_curr_pks(1,1)*1e9, error.tot_curr_a25_pks(1,1)*1e9];
+    
+    tmp.pks = zeros(length(event.raw.j_mag.data),3);
+    tmp.pks = nan;
+    tmp.pks = [tmp.pks,tmp.pks,tmp.pks];
+    tmp.pks(event.locsj,:) = error.Juv_pks; 
+    error_Juv_pks_rightsize = tmp.pks(:);
+
+    size(error.J(tmp.ind,:))
+    size(error.Juv(:,:))
+    size(error_Juv_pks_rightsize(:,:)) % this one is wrong
+
+    %errors_for_plots = [error.J(tmp.ind,:), error.Juv(:,:), error_Juv_pks_rightsize(:,:)];
 end

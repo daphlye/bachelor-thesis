@@ -25,14 +25,14 @@ params_preallocations;
 save('events/time_intervals.mat', 'good_time');
 
 %% stat. analyze extracted time intervals and plot functions
-for i = 1:height(good_time)
+for i = 7% :height(good_time) %specify here, which of the 10 time intervals you want to load
     fprintf('\n Starting to analyze time interval i = %d\n', i);
     tmp.start = irf_time(good_time(i,1), 'epoch>epochtt');
     tmp.stop = irf_time(good_time(i,2), 'epoch>epochtt');
     tmp.tint = irf.tint(tmp.start, tmp.stop); 
     tmp.tint_beob = [tmp.tint(1)+(15*60),tmp.tint(2)]; % maybe change tmp.stop to tmp.start+25*60? - so that all tints have same length!
     % analyze tint
-    [omni, mmsd, event, val_arr(i,:), curr_arr(i,:)] = load_analyze_tint_2(tmp.tint, tmp.tint_beob, Param, i);
+    [omni, mmsd, event, val_arr(i,:), curr_arr(i,:), errors_for_table(i,:), error, error_position(i,:)] = load_analyze_tint_2( tmp.tint, tmp.tint_beob, Param, i);
     
     % save data to plot with python
     % omni, mmsd, event, tint, tint_beob, Param
@@ -45,7 +45,7 @@ for i = 1:height(good_time)
     save(['events/data/', event.tint_string,'_mms_data.mat'], 'event');
     
     % plot tint
-    if 1
+    if 0
         plot_tint_3(omni, mmsd, event,tmp.tint, tmp.tint_beob, Param);
     end
     fprintf('\nTime interval number %d/%d: Finished. \n', i, length(good_time));

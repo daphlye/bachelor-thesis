@@ -44,10 +44,10 @@ function ok_arr = filter_mms_data(good_time, Param)
             event.j_mag = TSeries(event.j.time, sqrt(event.j.data(:,1).^2 + event.j.data(:,2).^2 + event.j.data(:,3).^2));
             [event.avgj, event.medj, event.stdj] = get_stats(event.j_mag.data);
             % Find peaks in Jmag and create corresponding timeseries
-            nslv = event.medj + 2*event.stdj; 
+            nslv = event.medj + 2*event.stdj; % event.stdj*2
             % nslv = 2*event.stdj; 
             pkprom = 0.07*1e-6;
-            [event.pksj,event.locsj]=findpeaks(event.j_mag.data,'MinPeakHeight',event.stdj*2, 'MinPeakProminence',pkprom); %'MinPeakProminence',0.07*1e-6
+            [event.pksj,event.locsj]=findpeaks(event.j_mag.data,'MinPeakHeight',nslv, 'MinPeakProminence',pkprom); %'MinPeakProminence',0.07*1e-6
             pkprom_ok = ~isempty(event.locsj); 
         end
         if 1

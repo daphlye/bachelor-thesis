@@ -17,6 +17,8 @@ values_time.Properties.VariableNames = {'t_start', 't_end'};
 values_time = array2table(values{:,1:2});
 valtime_ltx = table2latex(values_time);
 
+%change j?noiselevel to muA/m^2
+values{:,4} = values{:,4}*1e6;
 
 values_ltx = table2latex(values);
 fid = fopen('events/tables/values_ltx.txt', 'w');  % Open the file for writing
@@ -26,6 +28,7 @@ current_ltx = array2latex(current);
 fid = fopen('events/tables/current_ltx.txt', 'w');  % Open the file for writing
 fprintf(fid, '%s\n', current_ltx);           % Write each line of text
 fclose(fid);  
+errors_ltx = array2latex(errors_for_table);
 
 % list event numbers tints
     event_tints = array2table(zeros(height(good_time),3));
@@ -45,8 +48,33 @@ parts_ab25 = curr_arr(:,7)./curr_arr(:,5);
 newcurr_arr = zeros(length(curr_arr), 6);
 newcurr_arr(:,1:5) = curr_arr(:,1:5);
 newcurr_arr(:,6) = parts_ab25*100;
+% calculate error
+Jpks25 = curr_arr(:,7); 
+Jpks   = curr_arr(:,5);
+errJpks25 = errors_for_table(:,3);
+errJpks   = errors_for_table(:,2);
 
-% create matrix for color 
+error.Jab25perJ = sqrt((errJpks25./Jpks).^2 + (Jpks25./(Jpks.^2).*errJpks).^2);
+error.newcurr_arr = [zeros(10,3), errors_for_table(:,1:2),error.Jab25perJ];
+% calculate mean of arrays for all values and the related error
+% Initialize arrays to store column means and propagated errors
+colMeans = zeros(1, size(newcurr_arr, 2));
+colErrors = zeros(1, size(error.newcurr_arr, 2));
+
+% Iterate through each column
+for col = 1:size(newcurr_arr, 2)
+    % Extract values and errors for the current column
+    colData = newcurr_arr(:, col);
+    colError = error.newcurr_arr(:, col);
+    
+    % Calculate the mean of the column
+    colMeans(col) = mean(colData);
+    
+    % Propagate the error for the mean
+    colErrors(col) = sqrt(sum(colError.^2)) / (length(colData).^2);
+end
+
+%% create matrix for color 
 comat_arr = newcurr_arr(:,2:end);      
 minusy = find(newcurr_arr(:,1)==-1);
 comat_arr(minusy,3:4) = newcurr_arr(minusy,4:5)*(-1); % changing sign of values on -y side for unified colormap
@@ -91,6 +119,17 @@ tint = [tint2(1)-60*60,tint2(1)+60*90]; % take 2 hour tint around first interval
     omni.Vxyz = TSeries(omni.time, [tmp.V(:,3:5)], 'to', 1); % GSM [km/s]
     omni.Ms = TSeries(omni.time, [tmp.Ms_n(:,2:2)], 'to', 1); % [#]
     omni.np = TSeries(omni.time, [tmp.Ms_n(:,3:3)], 'to', 1); % [cc]
+%% calculating means and maxes that are needed 
+meanomni.sw.B = [mean(omni.Bxyz.data(:,1)), mean(omni.Bxyz.data(:,2)), mean(omni.Bxyz.data(:,3)), mean(omni.B_tot.data)];
+meanomni.sw.B_std = [std(omni.Bxyz.data(:,1)), std(omni.Bxyz.data(:,2)), std(omni.Bxyz.data(:,3)), std(omni.B_tot.data)];
+
+meanomni.sw.V = [mean(omni.Vxyz.data(:,1),'omitnan'), mean(omni.Vxyz.data(:,2),'omitnan'), mean(omni.Vxyz.data(:,3),'omitnan'), mean(omni.V_tot.data,'omitnan')];
+meanomni.sw.V_std = [std(omni.Vxyz.data(:,1),'omitnan'), std(omni.Vxyz.data(:,2),'omitnan'), std(omni.Vxyz.data(:,3),'omitnan'), std(omni.V_tot.data,'omitnan')];
+meanomni.sw.N = mean(omni.np.data,'omitnan');
+meanomni.sw.Ms = mean(omni.Ms.data,'omitnan');
+maxcurr = max(event.raw.j_mag.data)*1E9;
+maxcurr_err = error.J(find(max(event.raw.j_mag.data)))*1E9;
+
 %%
 h = irf_plot(4,'newfigure');
 
